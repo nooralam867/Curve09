@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generalized π Visualization</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f4f4f9;
+    }
+    canvas {
+      border: 1px solid black;
+      background-color: #ffffff;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    p {
+      font-size: 16px;
+      color: #333;
+      max-width: 600px;
+      text-align: center;
+    }
+    .controls {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .controls input {
+      margin: 5px 0;
+      padding: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #stopButton {
+      background-color: #f44336;
+    }
+    #stopButton:hover {
+      background-color: #d32f2f;
+    }
+    #resumeButton {
+      background-color: #FFA500;
+    }
+    #resumeButton:hover {
+      background-color: #FF8C00;
+    }
+    #totalTime {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Generalized Visualization of π's Irrationality</h1>
+<p>
+  Enter the speed values for the arms below and click "Start" to generate the curve.
+</p>
+
+<div class="controls">
+  <label for="speed1">Speed 1 (First Arm):</label>
+  <input type="number" id="speed1" value="0.02" step="0.01">
+  <label for="speed2">Speed 2 (Second Arm):</label>
+  <input type="number" id="speed2" value="0.02618" step="0.0001">
+  <button id="startButton">Start</button>
+  <button id="stopButton">Stop</button>
+  <button id="resumeButton">Resume</button>
+  <p id="totalTime">Total Running Time: 0 s</p>
+</div>
+
+<canvas id="canvas" width="800" height="800"></canvas>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const totalTimeElement = document.getElementById('totalTime');
+
+  // Arm properties
+  const arm1Length = 100; // Length of the first arm
+  const arm2Length = 50; // Length of the second arm
+  let angle1 = 0;         // Angle of the first arm
+  let angle2 = 0;         // Angle of the second arm
+  let speed1 = 0;         // Speed of the first arm (set dynamically)
+  let speed2 = 0;         // Speed of the second arm (set dynamically)
+  let animationActive = false;
+
+  // Persistent curve properties
+  const curveCanvas = document.createElement('canvas');
+  curveCanvas.width = canvas.width;
+  curveCanvas.height = canvas.height;
+  const curveCtx = curveCanvas.getContext('2d');
+
+  // Time tracking variables
+  let elapsedTime = 0;  // Total running time in ms
+  let lastFrameTime = null; // Timestamp of the last frame
+
+  // Start a path for the continuous curve
+  curveCtx.beginPath();
+
+  function drawArm(x, y, angle, length, color) {
+    const endX = x + length * Math.cos(angle);
+    const endY = y + length * Math.sin(angle);
+
+    // Draw the arm
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(endX, endY);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+
+    return { x: endX, y: endY };
+  }
+
+  function drawCurve(x, y) {
+    // Draw a continuous curve by extending the path
+    curveCtx.lineTo(x, y);
+    curveCtx.strokeStyle = 'red';
+    curveCtx.lineWidth = 1.2; // Thinner line for better quality
+    curveCtx.stroke();
+  }
+
+  function animate(timestamp) {
+    if (!animationActive) return;
+
+    if (lastFrameTime === null) {
+      lastFrameTime = timestamp; // Initialize on first frame
+    }
+
+    // Clear the main canvas (not the persistent curve)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw the persistent curve on the main canvas
+    ctx.drawImage(curveCanvas, 0, 0);
+
+    // Draw the origin point
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 3, 0, 2 * Math.PI);
+    ctx.fillStyle = 'black';
+    ctx.fill();
+
+    // Draw the first arm
+    const arm1End = drawArm(centerX, centerY, angle1, arm1Length, 'blue');
+
+    // Draw the second arm connected to the first arm's endpoint
+    const arm2End = drawArm(arm1End.x, arm1End.y, angle2, arm2Length, 'green');
+
+    // Draw the continuous curve for the second arm's endpoint
+    drawCurve(arm2End.x, arm2End.y);
+
+    // Update angles for rotation
+    angle1 += speed1; // First arm rotates at dynamic speed
+    angle2 += speed2; // Second arm rotates at dynamic speed
+
+    // Update total running time
+    elapsedTime += (timestamp - lastFrameTime);
+    totalTimeElement.textContent = `Total Running Time: ${(elapsedTime / 1000).toFixed(1)} s`;
+
+    lastFrameTime = timestamp;
+
+    // Request the next animation frame
+    requestAnimationFrame(animate);
+  }
+
+  // Event listener for the Start button
+  document.getElementById('startButton').addEventListener('click', () => {
+    // Retrieve speed values from input fields
+    speed1 = parseFloat(document.getElementById('speed1').value);
+    speed2 = parseFloat(document.getElementById('speed2').value);
+
+    // Reset angles and curve if restarting
+    angle1 = 0;
+    angle2 = 0;
+    elapsedTime = 0; // Reset total running time
+    lastFrameTime = null; // Reset frame time
+    curveCtx.clearRect(0, 0, curveCanvas.width, curveCanvas.height);
+    curveCtx.beginPath();
+    curveCtx.moveTo(centerX, centerY);
+
+    // Activate animation
+    animationActive = true;
+    requestAnimationFrame(animate);
+  });
+
+  // Event listener for the Stop button
+  document.getElementById('stopButton').addEventListener('click', () => {
+    // Deactivate animation
+    animationActive = false;
+  });
+
+  // Event listener for the Resume button
+  document.getElementById('resumeButton').addEventListener('click', () => {
+    if (!animationActive) {
+      animationActive = true;
+      requestAnimationFrame(animate);
+    }
+  });
+</script>
+
+</body>
+</html>
